@@ -3,26 +3,47 @@ import { FcGoogle } from "react-icons/fc";
 import { FaFacebookF } from "react-icons/fa";
 import { useState} from 'react';
 import { signInWithGooglePopup } from '../../firebase';
+import { useNavigate } from "react-router-dom";
+import { doLogin } from "../../lib/authHandler";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function signin() {
    const [loading, setLoading] = useState(false);
-   const [user, setUser] = useState(null);
    const [error, setError] = useState(null);
+   const navigate = useNavigate();
+   const { setLogged, setUser } = useAuth();
 
 
     async function handleGoogleSignIn() {
         setLoading(true);
         setError(null);
-        try {
-            const userObj = await signInWithGooglePopup();
-            setUser({
-                name: userObj.displayName,
-                email: userObj.email,
-                photoURL: userObj.photoURL,
-                uid: userObj.uid,
-            });
-            console.log('Usuário logado:', userObj);
 
+        try {
+            const result = await signInWithGooglePopup();
+            
+            if(!result) {
+              throw new Error('Falha ao obter informações do usuário do Google.');
+            }
+
+            const userObj = result;
+            const token = await userObj.getIdToken();
+
+
+            const userData = {
+              name: userObj.displayName,
+              email: userObj.email,
+              photoURL: userObj.photoURL,
+              uid: userObj.uid
+          }
+
+          doLogin(token, userData);
+
+          setLogged(true);
+          setUser(userData);
+          console.log('Login bem-sucedido:', userData);
+
+        navigate('/');
+            
         } catch (error) {
           console.error('Erro ao fazer login com Google:', error);
           setError(error.massage || 'Erro ao fazer login. Por favor, tente novamente.');
@@ -74,26 +95,8 @@ export default function signin() {
           Não tem uma conta? <a href="/signup">Cadastre-se</a>
         </p>
 
-        {error && <p style={{ color: 'red', marginTop: 12 }}>{error}</p>}
-
-        {user && (
-            <div className="userinfo" style={{ marginTop: 16 }}>
-              <img
-                src={user.photoURL}
-                alt={user.name}
-                style={{ width: 48, height: 48, borderRadius: '50%' }}
-                />
-
-                <div>
-                  <p>
-                    <strong>{user.nome}</strong>
-                  </p>
-                  <p style={{ fontSize: 12 }}> {user.email}</p>
-                  </div>
-              
-              </div>
-        )}
-
+        {error && <p style={{ color: 'red', marginTop: 12 }}>
+          {error}</p>}
       </div>
 
       <p className="terms">
